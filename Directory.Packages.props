@@ -1,0 +1,5 @@
+<Project>
+  <ItemGroup>
+    <PackageReference Include="SvSoft.MSBuild.CheckUnnecessaryUsings" Version="1.0.2" PrivateAssets="all" />
+  </ItemGroup>
+</Project>

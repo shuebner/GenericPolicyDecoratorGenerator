@@ -1,0 +1,13 @@
+﻿namespace MyNamespace;
+
+partial class GenericFooDecorator
+{
+    private partial void Decorate(global::System.Action doInner);
+    private partial T Decorate<T>(global::System.Func<T> doInner);
+    private partial global::System.Threading.Tasks.Task DecorateAsync(global::System.Func<global::System.Threading.Tasks.Task> doInner);
+    private partial global::System.Threading.Tasks.Task<T> DecorateAsync<T>(global::System.Func<global::System.Threading.Tasks.Task<T>> doInner);
+
+    private partial global::MyNamespace.IMyInterface GetInnerIMyInterface();
+
+    global::System.Threading.Tasks.Task<string> global::MyNamespace.IMyInterface.GetStuffAsync(int arg1, string arg2) => DecorateAsync(() => GetInnerIMyInterface().GetStuffAsync(arg1, arg2));
+}

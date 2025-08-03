@@ -1,0 +1,39 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <CompilerGeneratedFilesOutputPath>Generated</CompilerGeneratedFilesOutputPath>
+    <ImplicitUsings>true</ImplicitUsings>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <LangVersion>Latest</LangVersion>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <IsRoslynComponent>true</IsRoslynComponent>
+    <RootNamespace>SvSoft.Analyzers.GenericDecoratorGeneration</RootNamespace>
+    <AssemblyName>SvSoft.Analyzers.GenericDecoratorGeneration</AssemblyName>
+  </PropertyGroup>
+
+  <!-- The following libraries include the source generator interfaces and types we need -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.3" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.3.0" PrivateAssets="all" />
+  </ItemGroup>
+
+
+  <ItemGroup>
+    <EmbeddedResource Include="GenericDecoratorAttribute.cs" />
+  </ItemGroup>
+  
+  <!-- This ensures the library will be packaged as a source generator when we use `dotnet pack` -->
+  <ItemGroup>
+    <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Microsoft.CodeAnalysis" />
+    <Using Include="Microsoft.CodeAnalysis.CSharp.Syntax" />
+    <Using Include="Microsoft.CodeAnalysis.Text" />
+    <Using Include="System.Collections.Immutable" />
+    <Using Include="System.Text" />
+  </ItemGroup>
+</Project>

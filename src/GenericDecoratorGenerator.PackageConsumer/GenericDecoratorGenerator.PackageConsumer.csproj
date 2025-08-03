@@ -1,0 +1,48 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Reference the latest test version.
+         This cannot be hardcoded to the actually built version, because the current ticks are
+         evaluated twice: once when the target is run and once when the restore is run.
+         The requested version would then be higher than the built version and thus
+         not be found. -->
+    <PackageReference Include="SvSoft.Analyzers.GenericDecoratorGeneration" Version="*-test.*" PrivateAssets="all" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <__RepoRoot>$(MSBuildThisFileDirectory)../../</__RepoRoot>
+    <__PackagesRoot>$(MSBuildThisFileDirectory)packages/</__PackagesRoot>
+    <__TestPackageProjectFullPath>$(__RepoRoot)src/GenericDecoratorGenerator/GenericDecoratorGenerator.csproj</__TestPackageProjectFullPath>
+    <__UtcTicks>$([System.DateTimeOffset]::Now.UtcTicks)</__UtcTicks>
+    <__TestPackageVersion>1.0.0-test.$(__UtcTicks)</__TestPackageVersion>
+    <RestoreAdditionalProjectSources>$(RestoreAdditionalProjectSources);$(__PackagesRoot)</RestoreAdditionalProjectSources>
+  </PropertyGroup>
+
+  <!-- Build the defaults nuget package that is referenced above -->
+  <Target Name="__CreateTestPackage" BeforeTargets="Restore">
+    <!--
+      Delete all other files in the folder so that a (manually) built higher version than the 1.0.0-* test versions
+      cannot accidentally be resolved instead of the intended 1.0.0-* test package.
+    -->
+    <ItemGroup>
+      <__PreviousPackages Include="$(__PackagesRoot)/*.nupkg" />
+    </ItemGroup>
+    <Delete Files="@(__PreviousPackages)" />
+
+    <Message Importance="high" Text="#### build package $(__DefaultsPackageProjectPath)" />
+    <MSBuild Targets="restore"
+             Projects="$(__TestPackageProjectFullPath)" />
+    <!-- Note that the OutputPath is relative to the csproj being built and NOT relative to this file.-->
+    <MSBuild Targets="pack"
+             Projects="$(__TestPackageProjectFullPath)"
+             Properties="OutputPath=$(__PackagesRoot);Version=$(__TestPackageVersion)" />
+    <Message Importance="high" Text="#### Done." />
+  </Target>
+
+</Project>
