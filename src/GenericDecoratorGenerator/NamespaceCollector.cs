@@ -1,4 +1,4 @@
-﻿namespace SvSoft.Analyzers.GenericPolicyDecoratorGeneration;
+﻿namespace SvSoft.Analyzers.GenericDecoratorGeneration;
 
 public static class NamespaceCollector
 {
