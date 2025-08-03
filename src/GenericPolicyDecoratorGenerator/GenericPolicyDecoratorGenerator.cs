@@ -1,8 +1,4 @@
-﻿using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.CodeAnalysis.Text;
-using System.Collections.Immutable;
-using System.Text;
+﻿using NetEscapades.EnumGenerators;
 
 namespace SvSoft.Analyzers.GenericPolicyDecoratorGeneration;
 
@@ -25,34 +21,36 @@ public class GenericPolicyDecoratorGenerator : IIncrementalGenerator
                 SourceText.From(SourceGenerationHelper.GenericPolicy, Encoding.UTF8));
         });
 
-        IncrementalValuesProvider<ClassDeclarationSyntax?> decoratorsToGenerate = context.SyntaxProvider
+        IncrementalValuesProvider<DecoratorDescriptor> decoratorsToGenerate = context.SyntaxProvider
             .ForAttributeWithMetadataName(
                 GenericPolicyDecoratorAttributeFullyQualifiedName,
                 predicate: static (s, _) => IsSyntaxTargetForGeneration(s),
-                transform: static (ctx, _) => GetSemanticTargetForGeneration(ctx))
-            .Where(static m => m is not null);
+                transform: static (ctx, _) => GetDecoratorToGenerate(ctx))
+            .Where(d => d.HasValue)
+            .Select(static (d, _) => d!.Value);
 
         context.RegisterSourceOutput(decoratorsToGenerate,
-            static (spc, source) => Execute(source, spc));
+            static (spc, source) => Execute(spc, source));
     }
 
-    static bool IsSyntaxTargetForGeneration(SyntaxNode node) => node is ClassDeclarationSyntax m && m.AttributeLists.Count > 0;
+    static bool IsSyntaxTargetForGeneration(SyntaxNode node) => node is ClassDeclarationSyntax;
 
-    static ClassDeclarationSyntax? GetSemanticTargetForGeneration(GeneratorAttributeSyntaxContext context) => (ClassDeclarationSyntax)context.TargetNode;
-
-    static void Execute(DecoratorToGenerate? decoratorToGenerate, SourceProductionContext context)
+    static void Execute(SourceProductionContext context, DecoratorDescriptor decoratorToGenerate)
     {
         if (decoratorToGenerate is { } value)
         {
             // generate the source code and add it to the output
-            string result = SourceGenerationHelper.GenerateDecorator(value);
+            string result = SourceGenerationHelper.GenerateDecorator(decoratorToGenerate);
             // Create a separate partial class file for each enum
-            context.AddSource($"GenericPolicyDecorator.{value.Name}.g.cs", SourceText.From(result, Encoding.UTF8));
+            context.AddSource($"{value.Namespace}.{value.ClassName}.g.cs", SourceText.From(result, Encoding.UTF8));
         }
     }
 
-    static DecoratorToGenerate? GetDecoratorToGenerate(SemanticModel semanticModel, ClassDeclarationSyntax targetSyntax)
+    static DecoratorDescriptor? GetDecoratorToGenerate(GeneratorAttributeSyntaxContext context)
     {
+        var semanticModel = context.SemanticModel;
+        var targetSyntax = context.TargetNode;
+
         // Get the semantic representation of the enum syntax
         if (semanticModel.GetDeclaredSymbol(targetSyntax) is not INamedTypeSymbol classSymbol)
         {
@@ -68,46 +66,83 @@ public class GenericPolicyDecoratorGenerator : IIncrementalGenerator
 
         var decoratedInterface = classSymbol.Interfaces[0];
 
-
         // Get the full type name of the class e.g. MyService, 
         // or OuterClass<T>.MyService if it was nested in a generic type (for example)
         string className = classSymbol.ToString();
+        string classNamespace = classSymbol.ContainingNamespace.Name;
+        HashSet<string> usedNamespaces = NamespaceCollector.CollectNamespacesFromType(decoratedInterface);
 
         // Get all the members in the class
-        ImmutableArray<ISymbol> classMembers = decoratedInterface.GetMembers();
-        var members = new List<string>(classMembers.Length);
+        ImmutableArray<ISymbol> interfaceMembers = decoratedInterface.GetMembers();
+        var members = new List<MemberDescriptor>(interfaceMembers.Length);
 
         // Get all the public methods from the class, and add their name to the list
-        foreach (ISymbol member in classMembers)
+        foreach (ISymbol interfaceMember in interfaceMembers)
         {
-            if (member is IFieldSymbol field && field.ConstantValue is not null)
+            if (interfaceMember is IMethodSymbol method)
             {
-                members.Add(member.Name);
+                var memberDescriptor = new MemberDescriptor(
+                    name: interfaceMember.Name,
+                    @return: method.ReturnType.Name,
+                    parameters: method.Parameters.Select(p => new ParameterDescriptor(
+                        expression: p.para)))
+                members.Add(interfaceMember.Name);
             }
         }
 
         // Create an EnumToGenerate for use in the generation phase
         enumsToGenerate.Add(new EnumToGenerate(className, members));
 
-        foreach (ISymbol member in classMembers)
-        {
-            if (member is IFieldSymbol field && field.ConstantValue is not null)
-            {
-                members.Add(member.Name);
-            }
-        }
-
-        return new EnumToGenerate(className, members);
+        return new DecoratorToGenerate(
+            @namespace: classNamespace,
+            className: className,
+            usings: new EquatableArray<string>(usedNamespaces.ToArray()),
+            interfaceName: decoratedInterface.Name,
+            members: members);
     }
+}
 
-    readonly record struct DecoratorToGenerate
+readonly record struct DecoratorDescriptor
+{
+    public readonly string Namespace;
+    public readonly string ClassName;
+    public readonly EquatableArray<string> Usings;
+
+    public readonly string InterfaceName;
+    public readonly EquatableArray<MemberDescriptor> Members;
+
+    public DecoratorDescriptor(string @namespace, string className, EquatableArray<string> usings, string interfaceName, EquatableArray<MemberDescriptor> members)
     {
-        public readonly string InterfaceName;
-        public readonly NetEscapades.EnumGenerators.EquatableArray<Member> Members;
+        Namespace = @namespace;
+        ClassName = className;
+        Usings = usings;
+        InterfaceName = interfaceName;
+        Members = members;
     }
+}
 
-    readonly record struct Member
+readonly record struct MemberDescriptor
+{
+    public readonly string Name;
+    public readonly string Return;
+    public readonly EquatableArray<ParameterDescriptor> Parameters;
+
+    public MemberDescriptor(string name, string @return, EquatableArray<ParameterDescriptor> parameters)
     {
+        Name = name;
+        Return = @return;
+        Parameters = parameters;
+    }
+}
 
+readonly record struct ParameterDescriptor
+{
+    public readonly string Expression;
+    public readonly string Name;
+
+    public ParameterDescriptor(string expression, string name)
+    {
+        Expression = expression;
+        Name = name;
     }
 }

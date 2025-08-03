@@ -12,7 +12,7 @@
 
   <!-- The following libraries include the source generator interfaces and types we need -->
   <ItemGroup>
-    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.2" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.3" PrivateAssets="all" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.3.0" PrivateAssets="all" />
   </ItemGroup>
   
@@ -20,5 +20,13 @@
   <ItemGroup>
     <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" 
         PackagePath="analyzers/dotnet/cs" Visible="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Microsoft.CodeAnalysis" />
+    <Using Include="Microsoft.CodeAnalysis.CSharp.Syntax" />
+    <Using Include="Microsoft.CodeAnalysis.Text" />
+    <Using Include="System.Collections.Immutable" />
+    <Using Include="System.Text" />
   </ItemGroup>
 </Project>
